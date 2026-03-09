@@ -1,6 +1,18 @@
-# VibeSafe
+<p align="center">
+  <img src="assets/logo.svg" alt="VibeSafe" width="96" height="96" />
+</p>
 
-Deploy Python vibe code to Kubernetes with zero-trust security (SELinux, VAP, SPIRE, Network Policies) and vulnerability scanning.
+<h1 align="center">VibeSafe</h1>
+
+<p align="center">
+  <strong>Deploy Python vibe code to Kubernetes with zero-trust security in one command.</strong>
+</p>
+
+<p align="center">
+  Analyzes your code, detects required permissions, and generates secure K8s manifests with SELinux, Validating Admission Policies, Network Policies, and SPIRE workload identities — plus built-in vulnerability scanning.
+</p>
+
+---
 
 ## Installation
 

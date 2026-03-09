@@ -1,0 +1,3 @@
+GitHub repository description (paste into Settings → General → Description):
+
+Deploy Python vibe code to Kubernetes with zero-trust security (SELinux, VAP, SPIRE, Network Policies). One-command deploy with built-in vulnerability scanning.

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" width="200" height="48">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d9488"/>
+      <stop offset="100%" style="stop-color:#0891b2"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="10" fill="url(#bg)"/>
+  <path d="M14 36 L24 20 L34 36" fill="none" stroke="#f0fdfa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="20" y="30" width="8" height="2" rx="0.5" fill="#f0fdfa"/>
+  <text x="56" y="32" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="700" fill="#0f766e">VibeSafe</text>
+</svg>
