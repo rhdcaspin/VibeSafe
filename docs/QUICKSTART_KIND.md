@@ -83,6 +83,7 @@ kind delete cluster --name vibesafe-demo
 
 ## Next steps
 
+- **Add RHACS:** See [RHACS_KIND.md](RHACS_KIND.md) to deploy Red Hat Advanced Cluster Security on Kind
 - **Add SPIRE:** See [SPIRE_SETUP.md](SPIRE_SETUP.md) to install SPIRE on Kind
 - **Vulnerability scanning:** Install [Trivy](https://github.com/aquasecurity/trivy) for container image scans
 - **Your own script:** Replace `tests/sample_vibe_code.py` with your Python file
