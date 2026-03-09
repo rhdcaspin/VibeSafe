@@ -9,7 +9,25 @@
 </p>
 
 <p align="center">
-  Analyzes your code, detects required permissions, and generates secure K8s manifests with SELinux, Validating Admission Policies, Network Policies, and SPIRE workload identities — plus built-in vulnerability scanning.
+  VibeSafe is an enterprise-grade Kubernetes control plane designed to safely execute rapidly generated AI code ("vibe code"). It bridges the gap between the speed of AI development and the strict compliance requirements of sovereign, air-gapped, and highly regulated cloud environments.
+
+With a single command (vibe deploy), VibeSafe analyzes Python code intent and dynamically wraps the workload in a mathematically isolated, zero-trust sandbox.
+
+✨ Key Features
+Identity-First Security (SPIRE): Eliminates static secrets. Every deployment is dynamically issued a short-lived, cryptographically verifiable identity (SVID) scoped exactly to its needs.
+
+Native Guardrails (VAP): Uses Kubernetes Validating Admission Policies (CEL) to strictly enforce non-privileged execution and required security contexts without relying on third-party webhooks.
+
+Hardware-Grade Isolation: Automatically injects precise SELinux profiles (e.g., container_t) and Default-Deny Network Policies to prevent lateral movement and unauthorized egress.
+
+Sovereign-Cloud Ready: Built for enterprise air-gapped environments. No external API dependencies, no "phone home" telemetry—just pure, self-hosted execution control.
+
+🚀 The "One-Command" Experience
+Bash
+$ vibe deploy ./ai_agent.py --secure
+🔍 Analyzing script profile...
+🛡️ Generating Zero-Trust manifests (SELinux, VAP, SPIRE)...
+✅ Workload isolated and deployed securely to cluster.
 </p>
 
 ---
