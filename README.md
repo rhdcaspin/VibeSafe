@@ -14,6 +14,16 @@
 
 ---
 
+## Quick Start (Kind)
+
+```bash
+kind create cluster --name vibesafe-demo
+pip install -e .
+vibe deploy tests/sample_vibe_code.py --project my-ai-agent --no-spire
+```
+
+See [docs/QUICKSTART_KIND.md](docs/QUICKSTART_KIND.md) for the full guide.
+
 ## Installation
 
 ```bash
