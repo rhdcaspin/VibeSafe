@@ -1,0 +1,14 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: vibe-secure-policy-binding
+spec:
+  policyName: vibe-secure-policy
+  validationActions: ["Deny"]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        vibe.secure/enabled: "true"
+    objectSelector:
+      matchLabels:
+        vibe.secure/deployed: "true"

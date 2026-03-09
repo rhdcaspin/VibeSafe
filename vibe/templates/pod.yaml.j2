@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ project_name }}-vibe
+  labels:
+    app: {{ project_name }}-vibe
+    vibe.secure/deployed: "true"
+spec:
+  securityContext:
+    seLinuxOptions:
+      type: container_t
+{% if pip_packages %}
+  initContainers:
+    - name: pip-install
+      image: registry.access.redhat.com/ubi9/python-39
+      command:
+        - /bin/bash
+        - -c
+        - pip3 install --target /packages {{ pip_packages | join(' ') }}
+      volumeMounts:
+        - name: pip-packages
+          mountPath: /packages
+{% endif %}
+  containers:
+    - name: vibe-runner
+      image: registry.access.redhat.com/ubi9/python-39
+      command: ["python3", "/app/vibe_code.py"]
+{% if pip_packages %}
+      env:
+        - name: PYTHONPATH
+          value: "/packages"
+{% endif %}
+      volumeMounts:
+{% if pip_packages %}
+        - name: pip-packages
+          mountPath: /packages
+          readOnly: true
+{% endif %}
+{% if use_spire %}
+        - name: spiffe-workload-api
+          mountPath: /run/spire/sockets
+          readOnly: true
+{% endif %}
+        - name: vibe-code
+          mountPath: /app
+          readOnly: true
+  volumes:
+{% if pip_packages %}
+    - name: pip-packages
+      emptyDir: {}
+{% endif %}
+{% if use_spire %}
+    - name: spiffe-workload-api
+      csi:
+        driver: csi.spiffe.io
+        volumeAttributes:
+          spiffeID: spiffe://example.org/workload/{{ project_name }}
+{% endif %}
+    - name: vibe-code
+      configMap:
+        name: {{ project_name }}-vibe-code

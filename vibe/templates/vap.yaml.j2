@@ -1,0 +1,19 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: vibe-secure-policy
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  validations:
+    - expression: "!has(object.spec.securityContext) || object.spec.securityContext.privileged != true"
+      message: "Privileged containers are not allowed for vibe deployments"
+    - expression: "has(object.spec.securityContext) && has(object.spec.securityContext.seLinuxOptions)"
+      message: "SELinux options must be set for vibe deployments"
+    - expression: "object.spec.securityContext.seLinuxOptions.type == 'container_t'"
+      message: "SELinux type must be container_t for vibe deployments"

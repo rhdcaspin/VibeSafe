@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vibesafe"
+version = "0.1.0"
+description = "Deploy Python vibe code to Kubernetes with zero-trust security"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "typer[all]>=0.9.0",
+    "jinja2>=3.1.0",
+    "kubernetes>=28.0.0",
+    "pyyaml>=6.0",
+    "pip-audit>=2.10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+vibe = "vibe.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vibe"]

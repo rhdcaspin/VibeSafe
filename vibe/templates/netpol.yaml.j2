@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ project_name }}-vibe-netpol
+spec:
+  podSelector:
+    matchLabels:
+      app: {{ project_name }}-vibe
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+{% if needs_network_egress %}
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+{% else %}
+  egress: []
+{% endif %}
