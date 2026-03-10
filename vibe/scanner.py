@@ -1,5 +1,7 @@
 """Vulnerability scanning for Python dependencies and container images."""
 
+import json
+import os
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -74,8 +76,6 @@ def scan_pip_packages(packages: list[str]) -> ScanResult:
 
     # Parse JSON output
     try:
-        import json
-
         data = json.loads(result.stdout) if result.stdout else {}
     except json.JSONDecodeError:
         if result.stderr:
@@ -102,9 +102,73 @@ def scan_pip_packages(packages: list[str]) -> ScanResult:
     return ScanResult(passed=passed, findings=findings, errors=errors)
 
 
-def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
+def _parse_roxctl_vulnerabilities(data: dict) -> list[VulnFinding]:
+    """Parse RHACS/roxctl image scan JSON output into VulnFinding list."""
+    findings: list[VulnFinding] = []
+
+    def add_vuln(
+        component: str,
+        version: str | None,
+        vuln_id: str,
+        severity: str,
+        description: str,
+        fix_version: str | None = None,
+    ) -> None:
+        fix_versions = [fix_version] if fix_version else []
+        findings.append(
+            VulnFinding(
+                component=component,
+                version=version,
+                vuln_id=vuln_id,
+                severity=severity or "UNKNOWN",
+                description=description or "",
+                fix_versions=fix_versions,
+                source="roxctl",
+            )
+        )
+
+    # RHACS/StackRox scan output: image.scan, scan, or scanResults
+    scan = (
+        data.get("image", {}).get("scan")
+        or data.get("scan")
+        or data.get("scanResults")
+        or data
+    )
+    components = scan.get("components", scan.get("component", [])) if isinstance(scan, dict) else []
+    if not isinstance(components, list):
+        components = [components] if components else []
+
+    for comp in components:
+        name = comp.get("name", comp.get("layer", "unknown"))
+        version = comp.get("version")
+        vulns = comp.get("vulns", comp.get("vulnerabilities", []))
+        for v in vulns:
+            add_vuln(
+                component=name,
+                version=version,
+                vuln_id=v.get("id", v.get("cve", v.get("vulnerabilityId", ""))),
+                severity=v.get("severity", "UNKNOWN"),
+                description=v.get("summary", v.get("description", v.get("link", ""))),
+                fix_version=v.get("fixedBy", v.get("fixedIn", v.get("fixedVersion"))),
+            )
+
+    # Alternative: flat vulns array
+    for v in data.get("vulnerabilities", []):
+        add_vuln(
+            component=v.get("component", v.get("name", "unknown")),
+            version=v.get("version"),
+            vuln_id=v.get("id", v.get("cve", "")),
+            severity=v.get("severity", "UNKNOWN"),
+            description=v.get("summary", v.get("description", "")),
+            fix_version=v.get("fixedBy", v.get("fixedIn")),
+        )
+
+    return findings
+
+
+def _scan_container_image_trivy(image: str) -> ScanResult:
     """
-    Scan container image for vulnerabilities using Trivy (if installed).
+    Scan container image using Trivy (fallback when roxctl/RHACS not available).
     """
     findings: list[VulnFinding] = []
     errors: list[str] = []
@@ -127,17 +191,15 @@ def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
         )
     except FileNotFoundError:
         errors.append(
-            "Trivy not found. Install from https://github.com/aquasecurity/trivy "
-            "for container scanning."
+            "No container scanner available. Install roxctl (RHACS) or Trivy "
+            "(https://github.com/aquasecurity/trivy) for image scanning."
         )
-        return ScanResult(passed=True, errors=errors)  # Don't fail deploy if trivy missing
+        return ScanResult(passed=True, errors=errors)
     except subprocess.TimeoutExpired:
         errors.append("Trivy timed out after 120s")
         return ScanResult(passed=False, errors=errors)
 
     try:
-        import json
-
         data = json.loads(result.stdout) if result.stdout else {}
     except json.JSONDecodeError:
         errors.append(result.stderr or "Trivy output parse failed")
@@ -157,7 +219,69 @@ def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
                 )
             )
 
-    # Trivy exit 1 = vulns found (or error)
+    passed = result.returncode == 0 and not findings
+    return ScanResult(passed=passed, findings=findings, errors=errors)
+
+
+def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
+    """
+    Scan container image for vulnerabilities using roxctl (RHACS CLI).
+
+    Requires RHACS Central to be running and configured via environment:
+    - ROX_CENTRAL_ADDRESS: Central API endpoint (e.g. staging.demo.stackrox.com:443)
+    - ROX_API_TOKEN: API token from RHACS Platform Configuration → API Tokens
+    - ROX_INSECURE: set to 'true' for self-signed certs (e.g. local Central)
+    """
+    findings: list[VulnFinding] = []
+    errors: list[str] = []
+
+    central = os.environ.get("ROX_CENTRAL_ADDRESS")
+    token = os.environ.get("ROX_API_TOKEN")
+    if not central or not token:
+        # Fall back to Trivy when RHACS not configured
+        return _scan_container_image_trivy(image)
+
+    cmd = [
+        "roxctl",
+        "image",
+        "scan",
+        "--image",
+        image,
+        "--output",
+        "json",
+        "-e",
+        central,
+    ]
+    if os.environ.get("ROX_INSECURE", "").lower() in ("true", "1", "yes"):
+        cmd.append("--insecure")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=180,
+            env={**os.environ, "ROX_API_TOKEN": token},
+        )
+    except FileNotFoundError:
+        # Fall back to Trivy if roxctl not installed
+        return _scan_container_image_trivy(image)
+    except subprocess.TimeoutExpired:
+        errors.append("roxctl image scan timed out after 180s")
+        return ScanResult(passed=False, errors=errors)
+
+    if result.returncode != 0 and result.stderr:
+        errors.append(result.stderr.strip())
+        return ScanResult(passed=False, errors=errors)
+
+    try:
+        data = json.loads(result.stdout) if result.stdout else {}
+    except json.JSONDecodeError:
+        errors.append(result.stderr or "roxctl output parse failed")
+        return ScanResult(passed=False, errors=errors)
+
+    findings = _parse_roxctl_vulnerabilities(data)
+
     passed = result.returncode == 0 and not findings
     return ScanResult(passed=passed, findings=findings, errors=errors)
 

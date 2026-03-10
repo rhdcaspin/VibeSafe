@@ -101,7 +101,7 @@ def deploy(
     ),
     scan: bool = typer.Option(
         True, "--scan/--no-scan",
-        help="Run vulnerability scan before deploy (pip-audit for deps, trivy for image).",
+        help="Run vulnerability scan before deploy (pip-audit for deps, roxctl/Trivy for image).",
     ),
 ) -> None:
     """
@@ -203,7 +203,7 @@ def scan_cmd(
 ) -> None:
     """
     Run vulnerability scans on Python dependencies and container image.
-    Requires: pip-audit (pip install pip-audit), trivy for container (optional).
+    Requires: pip-audit (pip install pip-audit). Container scan: roxctl (RHACS) or Trivy.
     """
     if not script_path.exists():
         typer.echo(f"Error: File not found: {script_path}", err=True)
