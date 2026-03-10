@@ -52,7 +52,7 @@ Create a CRS from your Central instance using `roxctl`:
 
 ```bash
 export ROX_CENTRAL_ADDRESS=staging.demo.stackrox.com:443
-export ROX_API_TOKEN=<admin_api_token>
+export ROX_API_TOKEN=<your_api_token>
 
 roxctl -e "$ROX_CENTRAL_ADDRESS" central crs generate dc-kind-cluster \
   --output dc-kind-cluster-cluster-registration-secret.yaml

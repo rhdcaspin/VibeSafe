@@ -10,6 +10,8 @@ env/
 
 # Build outputs
 .vibe-build/
+vulnerability-report.csv
+*-vulnerability-report.csv
 dist/
 build/
 *.egg-info/

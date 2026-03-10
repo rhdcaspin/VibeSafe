@@ -59,7 +59,8 @@ SPIRE must know which pods get which SPIFFE IDs. Register an entry for your vibe
 **Create a registration entry** (adjust namespace/labels to match your deployment):
 
 ```bash
-kubectl exec -n spire deploy/spire-server -- \
+# SPIRE Helm chart uses a StatefulSet (use statefulset/ not deploy/)
+kubectl exec -n spire statefulset/spire-server -- \
   /opt/spire/bin/spire-server entry create \
   -spiffeID "spiffe://example.org/workload/my-ai-agent" \
   -parentID "spiffe://example.org/ns/default/sa/default" \
@@ -169,6 +170,7 @@ VibeSafe uses `spiffe://example.org/workload/<project_name>` by default. Update 
 
 | Problem | Check |
 |--------|-------|
+| `deployments.apps "spire-server" not found` | SPIRE Helm chart uses StatefulSet; use `statefulset/spire-server` not `deploy/spire-server` |
 | Pod stuck in `ContainerCreating` | SPIRE CSI driver not installed; use `--no-spire` for local dev |
 | "connection refused" in code | Agent not running; `kubectl get pods -n spire` |
 | "no identity" / empty SVID | Workload not registered; create entry for your pod/namespace |
