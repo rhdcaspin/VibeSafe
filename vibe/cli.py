@@ -162,8 +162,8 @@ def deploy(
 
     yaml_strings = generator.generate()
 
-    output_dir = Path(".vibe-build")
-    output_dir.mkdir(exist_ok=True)
+    output_dir = Path(".vibe-build") / project
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     for name, content in yaml_strings.items():
         out_path = output_dir / name
@@ -177,7 +177,7 @@ def deploy(
 
     try:
         apply_manifests(list(yaml_strings.values()))
-        typer.echo("✅ Deployment complete.")
+        typer.echo(f"✅ Deployment complete. Configuration files in {output_dir}/")
     except Exception as e:
         typer.echo(f"Error applying manifests: {e}", err=True)
         raise typer.Exit(1)
