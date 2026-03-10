@@ -203,7 +203,7 @@ def scan_cmd(
 ) -> None:
     """
     Run vulnerability scans on Python dependencies and container image.
-    Requires: pip-audit (pip install pip-audit). Container scan: roxctl (RHACS) or Trivy.
+    Requires: pip-audit (pip install pip-audit). Container: roxctl (RHACS) or Trivy.
     """
     if not script_path.exists():
         typer.echo(f"Error: File not found: {script_path}", err=True)

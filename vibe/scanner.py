@@ -127,7 +127,6 @@ def _parse_roxctl_vulnerabilities(data: dict) -> list[VulnFinding]:
             )
         )
 
-    # RHACS/StackRox scan output: image.scan, scan, or scanResults
     scan = (
         data.get("image", {}).get("scan")
         or data.get("scan")
@@ -152,7 +151,6 @@ def _parse_roxctl_vulnerabilities(data: dict) -> list[VulnFinding]:
                 fix_version=v.get("fixedBy", v.get("fixedIn", v.get("fixedVersion"))),
             )
 
-    # Alternative: flat vulns array
     for v in data.get("vulnerabilities", []):
         add_vuln(
             component=v.get("component", v.get("name", "unknown")),
@@ -167,9 +165,7 @@ def _parse_roxctl_vulnerabilities(data: dict) -> list[VulnFinding]:
 
 
 def _scan_container_image_trivy(image: str) -> ScanResult:
-    """
-    Scan container image using Trivy (fallback when roxctl/RHACS not available).
-    """
+    """Scan container image using Trivy (fallback when roxctl not available)."""
     findings: list[VulnFinding] = []
     errors: list[str] = []
 
@@ -191,8 +187,8 @@ def _scan_container_image_trivy(image: str) -> ScanResult:
         )
     except FileNotFoundError:
         errors.append(
-            "No container scanner available. Install roxctl (RHACS) or Trivy "
-            "(https://github.com/aquasecurity/trivy) for image scanning."
+            "Trivy not found. Install from https://github.com/aquasecurity/trivy "
+            "for container image scanning."
         )
         return ScanResult(passed=True, errors=errors)
     except subprocess.TimeoutExpired:
@@ -225,20 +221,12 @@ def _scan_container_image_trivy(image: str) -> ScanResult:
 
 def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
     """
-    Scan container image for vulnerabilities using roxctl (RHACS CLI).
-
-    Requires RHACS Central to be running and configured via environment:
-    - ROX_CENTRAL_ADDRESS: Central API endpoint (e.g. staging.demo.stackrox.com:443)
-    - ROX_API_TOKEN: API token from RHACS Platform Configuration → API Tokens
-    - ROX_INSECURE: set to 'true' for self-signed certs (e.g. local Central)
+    Scan container image for vulnerabilities. Uses roxctl (RHACS) when configured,
+    falls back to Trivy otherwise. Set ROX_CENTRAL_ADDRESS and ROX_API_TOKEN to use roxctl.
     """
-    findings: list[VulnFinding] = []
-    errors: list[str] = []
-
     central = os.environ.get("ROX_CENTRAL_ADDRESS")
     token = os.environ.get("ROX_API_TOKEN")
     if not central or not token:
-        # Fall back to Trivy when RHACS not configured
         return _scan_container_image_trivy(image)
 
     cmd = [
@@ -255,6 +243,9 @@ def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
     if os.environ.get("ROX_INSECURE", "").lower() in ("true", "1", "yes"):
         cmd.append("--insecure")
 
+    findings: list[VulnFinding] = []
+    errors: list[str] = []
+
     try:
         result = subprocess.run(
             cmd,
@@ -264,7 +255,6 @@ def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
             env={**os.environ, "ROX_API_TOKEN": token},
         )
     except FileNotFoundError:
-        # Fall back to Trivy if roxctl not installed
         return _scan_container_image_trivy(image)
     except subprocess.TimeoutExpired:
         errors.append("roxctl image scan timed out after 180s")
@@ -281,7 +271,6 @@ def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
         return ScanResult(passed=False, errors=errors)
 
     findings = _parse_roxctl_vulnerabilities(data)
-
     passed = result.returncode == 0 and not findings
     return ScanResult(passed=passed, findings=findings, errors=errors)
 

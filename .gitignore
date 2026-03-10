@@ -29,6 +29,10 @@ Thumbs.db
 .env
 *.local
 
-# RHACS secrets (CRS, init bundles)
+# RHACS / roxctl (do not upload to GitHub)
+roxctl
+roxctl.exe
+.env.roxctl
 *-cluster-registration-secret*.yaml
 *init-bundle*.yaml
+dc-kind-cluster-cluster-registration-secret.yaml

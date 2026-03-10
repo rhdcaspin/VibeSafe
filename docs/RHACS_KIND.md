@@ -103,8 +103,8 @@ With `ROX_CENTRAL_ADDRESS` and `ROX_API_TOKEN` set, VibeSafe uses roxctl for con
 export ROX_CENTRAL_ADDRESS=staging.demo.stackrox.com:443
 export ROX_API_TOKEN=<your_token>
 
-vibe scan script.py                    # Pip + container scan
-vibe deploy script.py --project demo   # Scan runs during deploy
+vibe scan script.py
+vibe deploy script.py --project demo
 ```
 
 ---

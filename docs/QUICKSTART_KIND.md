@@ -40,7 +40,7 @@ vibe deploy tests/sample_vibe_code.py --project my-ai-agent --no-spire
 
 You'll see:
 - Security analysis findings (network, high-risk modules)
-- Vulnerability scan (pip-audit + roxctl/RHACS for container if configured)
+- Vulnerability scan (pip-audit + roxctl/Trivy for container)
 - Manifests applied to the cluster
 
 ## 5. Verify the deployment
@@ -85,5 +85,5 @@ kind delete cluster --name vibesafe-demo
 
 - **Add RHACS:** See [RHACS_KIND.md](RHACS_KIND.md) to deploy Red Hat Advanced Cluster Security on Kind
 - **Add SPIRE:** See [SPIRE_SETUP.md](SPIRE_SETUP.md) to install SPIRE on Kind
-- **Vulnerability scanning:** Set `ROX_CENTRAL_ADDRESS` and `ROX_API_TOKEN` for roxctl container scans; see [RHACS_KIND.md](RHACS_KIND.md)
+- **Vulnerability scanning:** roxctl (RHACS) or [Trivy](https://github.com/aquasecurity/trivy); see [RHACS_KIND.md](RHACS_KIND.md)
 - **Your own script:** Replace `tests/sample_vibe_code.py` with your Python file

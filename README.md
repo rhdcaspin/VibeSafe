@@ -61,7 +61,7 @@ vibe deploy sample_vibe_code.py --project my-ai-agent --dry-run
 VibeSafe scans for known vulnerabilities before deploy:
 
 - **Python packages** (pip-audit) – CVEs in dependencies like `requests`
-- **Container image** (roxctl/RHACS or Trivy) – CVEs in the base image; roxctl when configured, Trivy as fallback
+- **Container image** (roxctl/RHACS or Trivy) – CVEs in the base image; roxctl when configured
 
 **Standalone scan:**
 ```bash
@@ -73,7 +73,7 @@ vibe scan script.py --strict           # Exit 1 if vulns found
 
 **During deploy:** Scanning runs by default. Use `--no-scan` to skip.
 
-**Container scanning:** Uses roxctl when `ROX_CENTRAL_ADDRESS` and `ROX_API_TOKEN` are set; otherwise falls back to Trivy if installed. See [docs/RHACS_KIND.md](docs/RHACS_KIND.md).
+**Container scanning:** Set `ROX_CENTRAL_ADDRESS` and `ROX_API_TOKEN` for roxctl; otherwise Trivy. See [docs/RHACS_KIND.md](docs/RHACS_KIND.md).
 
 ## SPIRE / Workload Identity
 
