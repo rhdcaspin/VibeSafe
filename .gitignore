@@ -28,3 +28,7 @@ Thumbs.db
 # Local / env files
 .env
 *.local
+
+# RHACS secrets (CRS, init bundles)
+*-cluster-registration-secret*.yaml
+*init-bundle*.yaml
