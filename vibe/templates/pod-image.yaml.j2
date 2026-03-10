@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ project_name }}-vibe
+  labels:
+    app: {{ project_name }}-vibe
+    vibe.secure/deployed: "true"
+spec:
+  securityContext:
+    seLinuxOptions:
+      type: container_t
+  containers:
+    - name: vibe-runner
+      image: {{ image_name }}
+      imagePullPolicy: {{ image_pull_policy }}
+{% if use_spire %}
+      volumeMounts:
+        - name: spiffe-workload-api
+          mountPath: /run/spire/sockets
+          readOnly: true
+{% endif %}
+  volumes:
+{% if use_spire %}
+    - name: spiffe-workload-api
+      csi:
+        driver: csi.spiffe.io
+        readOnly: true
+        volumeAttributes:
+          spiffeID: spiffe://example.org/workload/{{ project_name }}
+{% endif %}

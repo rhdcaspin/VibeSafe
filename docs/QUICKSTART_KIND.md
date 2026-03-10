@@ -76,6 +76,7 @@ kind delete cluster --name vibesafe-demo
 
 | Issue | Solution |
 |-------|----------|
+| `413 Request Entity Too Large` | ConfigMap was too big; VibeSafe now uses gzip compression. If it recurs, split into smaller projects or use a Git-based workflow |
 | Pod stuck in `ContainerCreating` | You forgot `--no-spire`; use `--no-spire` for Kind |
 | Pod in `Error` / `CrashLoopBackOff` | Check logs: `kubectl logs my-ai-agent-vibe -n default --previous` |
 | `Connection refused` during deploy | Kind cluster not running; run `kind create cluster` |

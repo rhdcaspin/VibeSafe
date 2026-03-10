@@ -9,8 +9,8 @@ spec:
   securityContext:
     seLinuxOptions:
       type: container_t
-{% if pip_packages %}
   initContainers:
+{% if pip_packages %}
     - name: pip-install
       image: registry.access.redhat.com/ubi9/python-39
       command:
@@ -21,14 +21,26 @@ spec:
         - name: pip-packages
           mountPath: /packages
 {% endif %}
+    - name: code-extract
+      image: registry.access.redhat.com/ubi9/python-39
+      command:
+        - /bin/bash
+        - -c
+        - tar -xzf /archive/vibe-code.tar.gz -C /app
+      volumeMounts:
+        - name: vibe-archive
+          mountPath: /archive
+          readOnly: true
+        - name: app-code
+          mountPath: /app
   containers:
     - name: vibe-runner
       image: registry.access.redhat.com/ubi9/python-39
-      command: ["python3", "/app/vibe_code.py"]
-{% if pip_packages %}
+      command: ["python3", "/app/{{ entry_point }}"]
+{% if pip_packages or '/' in entry_point %}
       env:
         - name: PYTHONPATH
-          value: "/packages"
+          value: "{{ '/app:/packages' if pip_packages and '/' in entry_point else '/packages' if pip_packages else '/app' }}"
 {% endif %}
       volumeMounts:
 {% if pip_packages %}
@@ -41,7 +53,7 @@ spec:
           mountPath: /run/spire/sockets
           readOnly: true
 {% endif %}
-        - name: vibe-code
+        - name: app-code
           mountPath: /app
           readOnly: true
   volumes:
@@ -49,6 +61,11 @@ spec:
     - name: pip-packages
       emptyDir: {}
 {% endif %}
+    - name: vibe-archive
+      configMap:
+        name: {{ project_name }}-vibe-code
+    - name: app-code
+      emptyDir: {}
 {% if use_spire %}
     - name: spiffe-workload-api
       csi:
@@ -57,6 +74,3 @@ spec:
         volumeAttributes:
           spiffeID: spiffe://example.org/workload/{{ project_name }}
 {% endif %}
-    - name: vibe-code
-      configMap:
-        name: {{ project_name }}-vibe-code

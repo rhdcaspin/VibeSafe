@@ -53,7 +53,14 @@ pip install -e .
 ## Usage
 
 ```bash
+# Single script
 vibe deploy sample_vibe_code.py --project my-ai-agent --dry-run
+
+# Directory (packages all .py files)
+vibe deploy src/myapp/ --project my-app --main myapp/main.py
+
+# Multiple scripts
+vibe deploy script1.py script2.py utils.py --project my-app --main script1.py
 ```
 
 ## Vulnerability Scanning

@@ -2,6 +2,8 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ project_name }}-vibe-netpol
+  annotations:
+    vibe.secure/egress-targets: "{{ egress_hostnames | join(',') }}"
 spec:
   podSelector:
     matchLabels:
@@ -12,13 +14,19 @@ spec:
   ingress: []
 {% if needs_network_egress %}
   egress:
+    # DNS (port 53) + app-specific ports extracted from code ({{ egress_hostnames | join(', ') or 'general HTTP/HTTPS' }})
     - to:
-        - namespaceSelector: {}
+        - ipBlock:
+            cidr: 0.0.0.0/0
       ports:
+        - protocol: UDP
+          port: 53
         - protocol: TCP
-          port: 443
+          port: 53
+{% for port in egress_ports %}
         - protocol: TCP
-          port: 80
+          port: {{ port }}
+{% endfor %}
 {% else %}
   egress: []
 {% endif %}
