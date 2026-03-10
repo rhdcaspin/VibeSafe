@@ -7,7 +7,13 @@ import typer
 from vibe.analyzer import analyze_script
 from vibe.generator import ManifestGenerator
 from vibe.deployer import apply_manifests
-from vibe.scanner import run_full_scan, VulnFinding, DEFAULT_CONTAINER_IMAGE
+from vibe.scanner import (
+    DEFAULT_CONTAINER_IMAGE,
+    VulnFinding,
+    has_critical_vulns,
+    run_full_scan,
+    write_findings_to_csv,
+)
 
 app = typer.Typer(invoke_without_command=True)
 
@@ -32,8 +38,9 @@ def _run_scan_and_report(
     skip_container: bool,
     *,
     fail_on_vuln: bool = False,
+    csv_output: Path | None = None,
 ) -> bool:
-    """Run scans and print report. Returns True if all passed."""
+    """Run scans and print report. Returns True if all passed. Exits on CRITICAL vulns."""
     typer.echo("")
     typer.echo("🔒 Vulnerability scan")
     typer.echo("─" * 40)
@@ -41,6 +48,17 @@ def _run_scan_and_report(
     pip_result, container_result = run_full_scan(
         pip_packages, container_image, skip_container
     )
+
+    if csv_output:
+        write_findings_to_csv(pip_result, container_result, csv_output)
+        typer.echo(f"  📄 Results saved to {csv_output}")
+
+    if has_critical_vulns(pip_result) or has_critical_vulns(container_result):
+        typer.echo("", err=True)
+        typer.echo("❌ CRITICAL vulnerabilities found. Stopping.", err=True)
+        if csv_output:
+            typer.echo(f"   See {csv_output} for details.", err=True)
+        raise typer.Exit(1)
 
     all_passed = True
 
@@ -101,7 +119,13 @@ def deploy(
     ),
     scan: bool = typer.Option(
         True, "--scan/--no-scan",
-        help="Run vulnerability scan before deploy (pip-audit for deps, roxctl/Trivy for image).",
+        help="Run vulnerability scan before deploy (pip-audit for deps, roxctl for image).",
+    ),
+    csv: Path | None = typer.Option(
+        None,
+        "--csv", "-o",
+        path_type=Path,
+        help="Write vulnerability findings to CSV file. Stops on CRITICAL vulns.",
     ),
 ) -> None:
     """
@@ -153,11 +177,13 @@ def deploy(
     pip_packages_list = generator.pip_packages
 
     if scan:
+        csv_path = csv or (Path(".vibe-build") / project / "vulnerability-report.csv")
         _run_scan_and_report(
             pip_packages_list,
             DEFAULT_CONTAINER_IMAGE,
             skip_container=False,
             fail_on_vuln=False,
+            csv_output=csv_path,
         )
 
     yaml_strings = generator.generate()
@@ -200,10 +226,16 @@ def scan_cmd(
         False, "--strict", "-s",
         help="Exit with error if vulnerabilities found",
     ),
+    csv: Path | None = typer.Option(
+        None,
+        "--csv", "-o",
+        path_type=Path,
+        help="Write vulnerability findings to CSV. Stops on CRITICAL vulns.",
+    ),
 ) -> None:
     """
     Run vulnerability scans on Python dependencies and container image.
-    Requires: pip-audit (pip install pip-audit). Container: roxctl (RHACS) or Trivy.
+    Requires: pip-audit (pip install pip-audit), roxctl for container (ROX_CENTRAL_ADDRESS, ROX_API_TOKEN).
     """
     if not script_path.exists():
         typer.echo(f"Error: File not found: {script_path}", err=True)
@@ -216,11 +248,13 @@ def scan_cmd(
     )
     pip_packages_list = generator.pip_packages
 
+    csv_path = csv or Path("vulnerability-report.csv")
     _run_scan_and_report(
         pip_packages_list,
         image,
         skip_container=no_container,
         fail_on_vuln=fail_on_vuln,
+        csv_output=csv_path,
     )
 
     typer.echo("✅ Scan complete.")

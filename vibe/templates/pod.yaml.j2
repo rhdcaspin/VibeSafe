@@ -53,6 +53,7 @@ spec:
     - name: spiffe-workload-api
       csi:
         driver: csi.spiffe.io
+        readOnly: true
         volumeAttributes:
           spiffeID: spiffe://example.org/workload/{{ project_name }}
 {% endif %}

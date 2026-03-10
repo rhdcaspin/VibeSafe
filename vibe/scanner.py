@@ -1,7 +1,9 @@
 """Vulnerability scanning for Python dependencies and container images."""
 
+import csv
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -33,6 +35,50 @@ class ScanResult:
     passed: bool
     findings: list[VulnFinding] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+
+
+CRITICAL_SEVERITY = "CRITICAL"
+
+
+def has_critical_vulns(result: ScanResult) -> bool:
+    """Return True if any finding has CRITICAL severity."""
+    return any(
+        f.severity.upper() == CRITICAL_SEVERITY
+        for f in result.findings
+    )
+
+
+def write_findings_to_csv(
+    pip_result: ScanResult,
+    container_result: ScanResult,
+    path: Path,
+) -> None:
+    """Write all vulnerability findings to a CSV file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    all_findings: list[VulnFinding] = []
+    for f in pip_result.findings:
+        all_findings.append(f)
+    for f in container_result.findings:
+        all_findings.append(f)
+
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            ["source", "component", "version", "vuln_id", "severity", "description", "fix_versions"]
+        )
+        for v in all_findings:
+            fix_str = "; ".join(v.fix_versions) if v.fix_versions else ""
+            writer.writerow(
+                [
+                    v.source,
+                    v.component,
+                    v.version or "",
+                    v.vuln_id,
+                    v.severity,
+                    (v.description or "")[:500],
+                    fix_str,
+                ]
+            )
 
 
 def scan_pip_packages(packages: list[str]) -> ScanResult:
@@ -164,73 +210,44 @@ def _parse_roxctl_vulnerabilities(data: dict) -> list[VulnFinding]:
     return findings
 
 
-def _scan_container_image_trivy(image: str) -> ScanResult:
-    """Scan container image using Trivy (fallback when roxctl not available)."""
-    findings: list[VulnFinding] = []
-    errors: list[str] = []
-
-    try:
-        result = subprocess.run(
-            [
-                "trivy",
-                "image",
-                "--scanners",
-                "vuln",
-                "--format",
-                "json",
-                "--no-progress",
-                image,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-    except FileNotFoundError:
-        errors.append(
-            "Trivy not found. Install from https://github.com/aquasecurity/trivy "
-            "for container image scanning."
-        )
-        return ScanResult(passed=True, errors=errors)
-    except subprocess.TimeoutExpired:
-        errors.append("Trivy timed out after 120s")
-        return ScanResult(passed=False, errors=errors)
-
-    try:
-        data = json.loads(result.stdout) if result.stdout else {}
-    except json.JSONDecodeError:
-        errors.append(result.stderr or "Trivy output parse failed")
-        return ScanResult(passed=False, errors=errors)
-
-    for result_data in data.get("Results", []):
-        for vuln in result_data.get("Vulnerabilities", []):
-            findings.append(
-                VulnFinding(
-                    component=vuln.get("PkgName", "unknown"),
-                    version=vuln.get("InstalledVersion"),
-                    vuln_id=vuln.get("VulnerabilityID", ""),
-                    severity=vuln.get("Severity", "UNKNOWN"),
-                    description=vuln.get("Title", vuln.get("Description", "")),
-                    fix_versions=[vuln.get("FixedVersion", "")] if vuln.get("FixedVersion") else [],
-                    source="trivy",
-                )
-            )
-
-    passed = result.returncode == 0 and not findings
-    return ScanResult(passed=passed, findings=findings, errors=errors)
+def _find_roxctl() -> str | None:
+    """Return path to roxctl, or None if not found. Checks PATH then ./roxctl."""
+    if shutil.which("roxctl"):
+        return "roxctl"
+    cwd_roxctl = Path.cwd() / "roxctl"
+    if cwd_roxctl.is_file() and os.access(cwd_roxctl, os.X_OK):
+        return str(cwd_roxctl)
+    return None
 
 
 def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
     """
-    Scan container image for vulnerabilities. Uses roxctl (RHACS) when configured,
-    falls back to Trivy otherwise. Set ROX_CENTRAL_ADDRESS and ROX_API_TOKEN to use roxctl.
+    Scan container image for vulnerabilities using roxctl (RHACS CLI).
+    Requires ROX_CENTRAL_ADDRESS and ROX_API_TOKEN. See docs/RHACS_KIND.md.
     """
     central = os.environ.get("ROX_CENTRAL_ADDRESS")
     token = os.environ.get("ROX_API_TOKEN")
     if not central or not token:
-        return _scan_container_image_trivy(image)
+        return ScanResult(
+            passed=True,
+            errors=[
+                "roxctl requires ROX_CENTRAL_ADDRESS and ROX_API_TOKEN. "
+                "Set them to connect to RHACS Central (see docs/RHACS_KIND.md)."
+            ],
+        )
+
+    roxctl_path = _find_roxctl()
+    if not roxctl_path:
+        return ScanResult(
+            passed=True,
+            errors=[
+                "roxctl not found in PATH or current directory. "
+                "Install from RHACS Central (Help → About) or add to PATH."
+            ],
+        )
 
     cmd = [
-        "roxctl",
+        roxctl_path,
         "image",
         "scan",
         "--image",
@@ -255,7 +272,10 @@ def scan_container_image(image: str = DEFAULT_CONTAINER_IMAGE) -> ScanResult:
             env={**os.environ, "ROX_API_TOKEN": token},
         )
     except FileNotFoundError:
-        return _scan_container_image_trivy(image)
+        errors.append(
+            "roxctl not found. Install from RHACS Central (Help → About) or Red Hat Ecosystem Catalog."
+        )
+        return ScanResult(passed=True, errors=errors)
     except subprocess.TimeoutExpired:
         errors.append("roxctl image scan timed out after 180s")
         return ScanResult(passed=False, errors=errors)
