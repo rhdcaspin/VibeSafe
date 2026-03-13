@@ -5,30 +5,18 @@
 <h1 align="center">VibeSafe</h1>
 
 <p align="center">
-  <strong>Deploy Python vibe code to Kubernetes with zero-trust security in one command.</strong>
+  <strong>A CLI that deploys Python scripts to Kubernetes with security policies derived from code analysis.</strong>
 </p>
 
-<p align="center">
-  VibeSafe is an enterprise-grade Kubernetes control plane designed to safely execute rapidly generated AI code ("vibe code"). It bridges the gap between the speed of AI development and the strict compliance requirements of sovereign, air-gapped, and highly regulated cloud environments.
+VibeSafe analyzes Python code and generates Kubernetes manifests to run it in a constrained environment. It:
 
-With a single command (vibe deploy), VibeSafe analyzes Python code intent and dynamically wraps the workload in a mathematically isolated, zero-trust sandbox.
+- **Static analysis**: Parses imports (e.g. `requests`, `urllib`) and extracts URLs/hosts to infer network needs
+- **Container build**: Builds a UBI-based image with your code and detected pip dependencies, or uses ConfigMap-based deploy
+- **Manifest generation**: Produces Pod, NetworkPolicy, ValidatingAdmissionPolicy, and optionally SPIRE volume manifests
+- **Security defaults**: Sets `container_t` SELinux type, default-deny network policy with egress limited to extracted hosts/ports
+- **Vulnerability scanning**: Runs pip-audit on dependencies and roxctl for container image CVE checks before deploy
 
-✨ Key Features
-Identity-First Security (SPIRE): Eliminates static secrets. Every deployment is dynamically issued a short-lived, cryptographically verifiable identity (SVID) scoped exactly to its needs.
-
-Native Guardrails (VAP): Uses Kubernetes Validating Admission Policies (CEL) to strictly enforce non-privileged execution and required security contexts without relying on third-party webhooks.
-
-Hardware-Grade Isolation: Automatically injects precise SELinux profiles (e.g., container_t) and Default-Deny Network Policies to prevent lateral movement and unauthorized egress.
-
-Sovereign-Cloud Ready: Built for enterprise air-gapped environments. No external API dependencies, no "phone home" telemetry—just pure, self-hosted execution control.
-
-🚀 The "One-Command" Experience
-Bash
-$ vibe deploy ./ai_agent.py --secure
-🔍 Analyzing script profile...
-🛡️ Generating Zero-Trust manifests (SELinux, VAP, SPIRE)...
-✅ Workload isolated and deployed securely to cluster.
-</p>
+Optional SPIRE integration provides workload identity (SVID) when a SPIRE server is configured in the cluster.
 
 ---
 
@@ -88,3 +76,11 @@ vibe scan script.py --csv report.csv   # Export results to CSV
 ## SPIRE / Workload Identity
 
 For production deployments with SPIFFE identities, omit `--no-spire`. See [docs/SPIRE_SETUP.md](docs/SPIRE_SETUP.md) for installation and usage in your Python code.
+
+## Future Plans
+
+Planned improvements include: broader base image support (Alpine, Distroless), support for `requirements.txt` and lockfiles instead of AST-inferred pip packages, richer AST analysis for environment variables and secrets usage, optional policy-as-code export (OPA/Rego), and improved offline/air-gapped build flows. Integration with additional scanners (Grype, Trivy) alongside roxctl is under consideration.
+
+## Community
+
+We welcome bug reports, documentation improvements, and contributions that align with the project's security-first focus. Before submitting larger changes, open an issue to discuss scope and design. When contributing, please keep PRs focused and ensure existing tests pass. We especially value feedback from teams using VibeSafe in regulated, air-gapped, or sovereign-cloud environments.
